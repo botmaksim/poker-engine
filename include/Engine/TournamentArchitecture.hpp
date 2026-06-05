@@ -213,7 +213,7 @@ public:
      * @param totalMassSessions Number of independent mass sessions to execute
      * @param variant Poker variant
      */
-    void executePhase2(const std::vector<int>& botPool, uint64_t totalMassSessions = 100000, GameVariant variant = GameVariant::TexasHoldem);
+    void executePhase2(const std::vector<int>& botPool, uint64_t totalMassSessions = 1000, GameVariant variant = GameVariant::TexasHoldem);
 
 private:
     std::unique_ptr<AsyncTournamentLogger> globalLogger;
