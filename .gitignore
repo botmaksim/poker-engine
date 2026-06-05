@@ -1,0 +1,13 @@
+build/
+docs/
+session_results.csv
+test_simulation
+poker_engine
+.cache/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+.DS_Store
