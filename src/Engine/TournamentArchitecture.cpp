@@ -1,5 +1,11 @@
 #include "../../include/Engine/TournamentArchitecture.hpp"
 #include "../../include/Games/TexasHoldem.hpp"
+#include "../../include/Games/Omaha.hpp"
+#include "../../include/Games/ShortDeck.hpp"
+#include "../../include/Games/SevenCardStud.hpp"
+#include "../../include/Games/Razz.hpp"
+#include "../../include/Games/FiveCardDraw.hpp"
+#include "../../include/Games/DeuceToSevenTripleDraw.hpp"
 #include "../../include/AI/InferenceEngine.hpp"
 #include "../../include/AI/RangeParser.hpp"
 #include "../../include/Engine/Analyzer.hpp"
@@ -13,6 +19,19 @@ std::mutex consoleMutex;
 
 namespace PokerEngine {
 namespace Tournament {
+
+std::unique_ptr<Interfaces::IGameRules> createGameVariant(GameVariant variant) {
+    switch (variant) {
+        case GameVariant::Omaha: return std::make_unique<Games::Omaha>();
+        case GameVariant::ShortDeck: return std::make_unique<Games::ShortDeck>();
+        case GameVariant::SevenCardStud: return std::make_unique<Games::SevenCardStud>();
+        case GameVariant::Razz: return std::make_unique<Games::Razz>();
+        case GameVariant::FiveCardDraw: return std::make_unique<Games::FiveCardDraw>();
+        case GameVariant::DeuceToSevenTripleDraw: return std::make_unique<Games::DeuceToSevenTripleDraw>();
+        case GameVariant::TexasHoldem:
+        default: return std::make_unique<Games::TexasHoldem>();
+    }
+}
 
 // -----------------------------------------------------------------------------
 // AsyncTournamentLogger
@@ -65,8 +84,8 @@ void AsyncTournamentLogger::ioWorkerLoop() {
     std::ofstream actionFile(outputPath + "_actions.csv", std::ios::app);
     std::ofstream metricFile(outputPath + "_metrics.csv", std::ios::app);
     
-    // В реальном проекте здесь будет интеграция с Parquet / ClickHouse
-    // Для демо используем CSV. Пишем заголовки, если файлы пустые
+    // In a real project, this would integrate with Parquet / ClickHouse
+    // For demo purposes, we use CSV. Write headers if files are empty
     actionFile << "SessionID,HandID,PlayerID,BotProfileID,Street,Position,StackBefore,ActionType,ActionAmount,SPR\n";
     metricFile << "SessionID,HandID,PlayerID,HoleCardsMask,BotEstEquity,ObjEquity,EVLoss,Exploitability,VPIP,PFR,AggrFactor,TiltIndex\n";
 
@@ -91,7 +110,7 @@ void AsyncTournamentLogger::ioWorkerLoop() {
             }
         }
         
-        // Массовая запись в файл
+        // Mass write to file
         for (const auto& a : localActions) {
             actionFile << a.sessionID << "," << a.handID << "," << a.playerID << "," << a.botProfileID << ","
                        << (int)a.street << "," << (int)a.position << "," << a.stackBefore << "," 
@@ -113,8 +132,8 @@ void AsyncTournamentLogger::ioWorkerLoop() {
 
 TournamentSession::TournamentSession(uint64_t id, AsyncTournamentLogger& logger) : sessionID(id), logger(logger) {}
 
-void TournamentSession::runHeadsUpMatch(int bot1ProfileID, int bot2ProfileID, int numHands) {
-    auto game = std::make_unique<Games::TexasHoldem>();
+void TournamentSession::runHeadsUpMatch(int bot1ProfileID, int bot2ProfileID, int numHands, GameVariant variant) {
+    auto game = createGameVariant(variant);
     TableConfig config{LimitType::NoLimit, 5, 10, 0, 0, 0};
     Engine::GameState state(config, std::move(game));
     
@@ -130,21 +149,21 @@ void TournamentSession::runHeadsUpMatch(int bot1ProfileID, int bot2ProfileID, in
     }
 }
 
-void TournamentSession::runMassSimulation(int maxHands, const std::vector<int>& botPool) {
-    auto game = std::make_unique<Games::TexasHoldem>();
+void TournamentSession::runMassSimulation(int maxHands, const std::vector<int>& botPool, GameVariant variant) {
+    auto game = createGameVariant(variant);
     TableConfig config{LimitType::NoLimit, 5, 10, 0, 0, 0};
     Engine::GameState state(config, std::move(game));
     
     std::vector<int> activeBotProfiles;
 
-    // Начальные 5 игроков
+    // Initial 5 players
     for (int i = 1; i <= 5; ++i) {
         state.addPlayer(i, 10000);
         activeBotProfiles.push_back(botPool[rand() % botPool.size()]);
     }
 
     for (int i = 0; i < maxHands; ++i) {
-        // Правило турнира: Каждые 15 раздач меняется бот
+        // Tournament rule: Bot swaps every 15 hands
         if (i > 0 && i % 15 == 0) {
             int swapIdx = rand() % 5;
             activeBotProfiles[swapIdx] = botPool[rand() % botPool.size()];
@@ -183,10 +202,10 @@ void TournamentSession::executeHand(Engine::GameState& state, std::vector<int>& 
             std::map<int, AI::Range> view = oppRanges;
             view.erase(player.id);
             
-            // Получить профиль ID и создать бота
+            // Get profile ID and create bot
             int profileId = activeBotProfiles[i];
             
-            // В рамках фабрики сейчас нужны ActionProfile / SizingProfile:
+            // Factory currently requires ActionProfile / SizingProfile:
             AI::ActionProfile aProf = static_cast<AI::ActionProfile>(profileId % 5);
             AI::SizingProfile sProf = static_cast<AI::SizingProfile>((profileId / 5) % 3);
             auto bot = AI::BotFactory::createBot(aProf, sProf, profileId);
@@ -280,7 +299,7 @@ TournamentCoordinator::TournamentCoordinator(const std::string& outputDir, int n
     globalLogger = std::make_unique<AsyncTournamentLogger>(outputDir);
 }
 
-void TournamentCoordinator::executePhase1(const std::vector<int>& botPool) {
+void TournamentCoordinator::executePhase1(const std::vector<int>& botPool, GameVariant variant) {
     std::cout << "[Phase 1] Round-Robin Started on " << workerThreadCount << " threads\n";
     
     std::vector<std::pair<int, int>> pairs;
@@ -302,7 +321,7 @@ void TournamentCoordinator::executePhase1(const std::vector<int>& botPool) {
                 if (idx >= pairs.size()) break;
                 
                 TournamentSession session(idx, *globalLogger);
-                session.runHeadsUpMatch(pairs[idx].first, pairs[idx].second, 10); // 10 раздач по условиям
+                session.runHeadsUpMatch(pairs[idx].first, pairs[idx].second, 10, variant); // 10 hands per requirement
                 
                 size_t c = completed.fetch_add(1) + 1;
                 if (c % 100 == 0 || c == totalPairs) {
@@ -318,20 +337,20 @@ void TournamentCoordinator::executePhase1(const std::vector<int>& botPool) {
     std::cout << "[Phase 1] Completed.\n";
 }
 
-void TournamentCoordinator::executePhase2(const std::vector<int>& botPool, uint64_t totalMassSessions) {
+void TournamentCoordinator::executePhase2(const std::vector<int>& botPool, uint64_t totalMassSessions, GameVariant variant) {
     std::cout << "[Phase 2] Mass Simulation Started (" << totalMassSessions << " sessions)\n";
     std::atomic<uint64_t> sessionCounter{0};
     std::atomic<uint64_t> completedPhase2{0};
     std::vector<std::thread> workers;
     
     for (int t = 0; t < workerThreadCount; ++t) {
-        workers.emplace_back([this, &botPool, &sessionCounter, &completedPhase2, totalMassSessions]() {
+        workers.emplace_back([this, &botPool, &sessionCounter, &completedPhase2, totalMassSessions, variant]() {
             while (true) {
                 uint64_t idx = sessionCounter.fetch_add(1);
                 if (idx >= totalMassSessions) break;
                 
                 TournamentSession session(1000000 + idx, *globalLogger);
-                session.runMassSimulation(15, botPool); // 15 раздач до замены
+                session.runMassSimulation(15, botPool, variant); // 15 hands before swap
 
                 uint64_t c = completedPhase2.fetch_add(1) + 1;
                 if (c % (totalMassSessions / 10 + 1) == 0 || c == totalMassSessions) {
