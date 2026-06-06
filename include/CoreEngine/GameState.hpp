@@ -61,16 +61,29 @@ namespace PokerEngine {
             /**
              * @brief Interprets a requested action from a player and processes
              * it.
+             * @param playerId The ID of the player taking the action.
+             * @param type The type of action being performed.
+             * @param absoluteAmount The absolute amount of chips the player is
+             * betting/raising to (if applicable) or amount of cards discarded.
+             * @param actionPayload An optional bitmask payload; e.g. used for
+             * discarding specific cards.
              */
-            void recordAction(int playerId, ActionType type,
-                              int absoluteAmount);
+            void recordAction(int playerId, ActionType type, int absoluteAmount,
+                              uint64_t actionPayload = 0);
 
             /**
              * @brief Validates if the action attempting to be performed is
              * currently legal.
+             * @param playerId The ID of the player taking the action.
+             * @param type The type of action being performed.
+             * @param absoluteAmount The absolute amount of chips the player is
+             * betting/raising to (if applicable) or amount of cards discarded.
+             * @param actionPayload An optional bitmask payload; e.g. used for
+             * discarding specific cards.
              */
             [[nodiscard]] bool isActionLegal(int playerId, ActionType type,
-                                             int absoluteAmount) const;
+                                             int absoluteAmount,
+                                             uint64_t actionPayload = 0) const;
 
             [[nodiscard]] const std::vector<Player>& getPlayers() const;
             [[nodiscard]] const Hand& getBoardCards() const;

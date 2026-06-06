@@ -84,13 +84,16 @@ namespace PokerEngine {
         }
 
         void GameState::recordAction(int playerId, ActionType type,
-                                     int absoluteAmount) {
+                                     int absoluteAmount,
+                                     uint64_t actionPayload) {
             auto it = std::find_if(
                 players.begin(), players.end(),
                 [playerId](const Player& p) { return p.id == playerId; });
             if (it != players.end()) {
                 int relativeCost = absoluteAmount - it->currentBet;
-                if (relativeCost > it->chipCount) {
+                if (type == ActionType::Discard) {
+                    relativeCost = 0;  // Discard has no betting cost
+                } else if (relativeCost > it->chipCount) {
                     relativeCost = it->chipCount;  // Cap at all-in
                 }
 
@@ -105,6 +108,26 @@ namespace PokerEngine {
                     it->hasFolded = true;
                 }
 
+                if (type == ActionType::Discard) {
+                    // Remove discarded cards and replacing them from the deck
+                    Hand newFaceDown;
+                    for (auto card : it->faceDownCards) {
+                        if ((actionPayload & card) == 0) {
+                            newFaceDown.push_back(card);
+                        }
+                    }
+                    int discardedCount =
+                        it->faceDownCards.size() - newFaceDown.size();
+                    for (int i = 0; i < discardedCount; ++i) {
+                        if (!deck.empty()) {
+                            newFaceDown.push_back(deck.back());
+                            deck.pop_back();
+                        }
+                    }
+                    it->faceDownCards = newFaceDown;
+                    absoluteAmount = discardedCount;  // For record
+                }
+
                 if (type == ActionType::Bet || type == ActionType::Raise) {
                     int raiseAmt = absoluteAmount - currentWager;
                     if (raiseAmt >= lastRaiseAmount) lastRaiseAmount = raiseAmt;
@@ -117,13 +140,14 @@ namespace PokerEngine {
                         currentWager = absoluteAmount;
                 }
 
-                bettingHistory.back().push_back(
-                    {playerId, type, absoluteAmount, relativeCost});
+                bettingHistory.back().push_back({playerId, type, absoluteAmount,
+                                                 relativeCost, actionPayload});
             }
         }
 
         bool GameState::isActionLegal(int playerId, ActionType type,
-                                      int absoluteAmount) const {
+                                      int absoluteAmount,
+                                      uint64_t actionPayload) const {
             auto it = std::find_if(
                 players.begin(), players.end(),
                 [playerId](const Player& p) { return p.id == playerId; });
@@ -134,6 +158,20 @@ namespace PokerEngine {
             int relativeAmount = absoluteAmount - p.currentBet;
 
             if (type == ActionType::Fold) return true;
+
+            if (type == ActionType::Discard) {
+                for (int i = 0; i < 64; ++i) {
+                    uint64_t mask = 1ULL << i;
+                    if ((actionPayload & mask)) {
+                        bool found = false;
+                        for (auto c : p.faceDownCards) {
+                            if (c == mask) found = true;
+                        }
+                        if (!found) return false;
+                    }
+                }
+                return true;
+            }
 
             if (type == ActionType::Check) {
                 return callAmount == 0 && absoluteAmount == p.currentBet;

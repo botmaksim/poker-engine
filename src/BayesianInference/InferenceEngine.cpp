@@ -129,6 +129,34 @@ namespace PokerEngine {
                 {finalFold, finalCall, finalRaise});
             int actionIdx = actionDist(rng);
 
+            // Swap intended action if discarding is allowed and preferred
+            if (!state.getRules()->hasCommunityCards() && toCall == 0) {
+                if (state.getRules()->getName().find("Draw") !=
+                    std::string::npos) {
+                    std::uniform_real_distribution<double> discardChance(0.0,
+                                                                         1.0);
+                    if (discardChance(rng) < 0.25) {
+                        // Determine cards to discard
+                        uint64_t payload = 0;
+                        int count = 0;
+                        for (auto card : bot.faceDownCards) {
+                            if (discardChance(rng) < 0.5) {
+                                payload |= card;
+                                count++;
+                            }
+                        }
+                        if (count > 0 && count <= 3 &&
+                            state.isActionLegal(botPlayerId,
+                                                ActionType::Discard, count,
+                                                payload)) {
+                            return PlayerAction{botPlayerId,
+                                                ActionType::Discard, count, 0,
+                                                payload};
+                        }
+                    }
+                }
+            }
+
             // 5. Validate & Size
             ActionType intendedType = ActionType::Fold;
             if (actionIdx == 1)

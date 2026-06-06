@@ -261,7 +261,8 @@ namespace PokerEngine {
 
                     PlayerAction act = AI::InferenceEngine::decideAction(
                         state, player.id, *bot, view);
-                    state.recordAction(player.id, act.type, act.absoluteAmount);
+                    state.recordAction(player.id, act.type, act.absoluteAmount,
+                                       act.actionPayload);
 
                     uint8_t street = state.getCurrentBettingRound();
 

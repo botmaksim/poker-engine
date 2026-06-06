@@ -8,6 +8,9 @@ namespace PokerEngine {
     using CardMask = uint64_t;
     using Hand = std::vector<CardMask>;
 
+    /**
+     * @brief Represents the types of actions a player can take down.
+     */
     enum class ActionType {
         Fold,
         Check,
@@ -16,7 +19,8 @@ namespace PokerEngine {
         Raise,
         PostBlind,
         Ante,
-        BringIn
+        BringIn,
+        Discard
     };
 
     enum class LimitType { NoLimit, PotLimit, FixedLimit };
@@ -30,11 +34,16 @@ namespace PokerEngine {
         int maxRaisesPerRound;
     };
 
+    /**
+     * @brief Represents a specific action taken by a player along with its data
+     * payload.
+     */
     struct PlayerAction {
         int playerId;
         ActionType type;
         int absoluteAmount;
         int relativeCost;
+        uint64_t actionPayload = 0;
     };
 
     struct Player {
