@@ -11,3 +11,4 @@ poker_engine
 *.dll
 *.exe
 .DS_Store
+.clang-format

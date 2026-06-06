@@ -7,25 +7,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 include_directories(include)
 
 add_library(poker_engine_lib
-    src/Engine/GameState.cpp
-    src/Engine/EvaluatorCore.cpp
-    src/Games/TexasHoldem.cpp
-    src/Games/Omaha.cpp
-    src/Games/ShortDeck.cpp
-    src/Games/SevenCardStud.cpp
-    src/Games/Razz.cpp
-    src/Games/FiveCardDraw.cpp
-    src/Games/DeuceToSevenTripleDraw.cpp
-    src/AI/BayesianTracker.cpp
-    src/AI/CompositeBot.cpp
-    src/AI/BaselineStrategies.cpp
-    src/AI/BotFactory.cpp
-    src/AI/Range.cpp
-    src/AI/RangeParser.cpp
-    src/AI/InferenceEngine.cpp
-    src/Engine/Session.cpp
-    src/Engine/Analyzer.cpp
-    src/Engine/TournamentArchitecture.cpp
+    src/CoreEngine/GameState.cpp
+    src/CoreEngine/Logger.cpp
+    src/HandEvaluator/EvaluatorCore.cpp
+    src/HandEvaluator/PerfectHashEvaluator.cpp
+    src/HandEvaluator/PreflopHeuristics.cpp
+    src/CoreEngine/Variants/TexasHoldem.cpp
+    src/CoreEngine/Variants/Omaha.cpp
+    src/CoreEngine/Variants/ShortDeck.cpp
+    src/CoreEngine/Variants/SevenCardStud.cpp
+    src/CoreEngine/Variants/Razz.cpp
+    src/CoreEngine/Variants/FiveCardDraw.cpp
+    src/CoreEngine/Variants/DeuceToSevenTripleDraw.cpp
+    src/BayesianInference/BayesianTracker.cpp
+    src/BotProfiles/CompositeBot.cpp
+    src/BotProfiles/BaselineStrategies.cpp
+    src/BotProfiles/BotFactory.cpp
+    src/BayesianInference/Range.cpp
+    src/BayesianInference/RangeParser.cpp
+    src/BayesianInference/InferenceEngine.cpp
+    src/CoreEngine/Session.cpp
+    src/MonteCarloSimulator/Analyzer.cpp
+    src/CoreEngine/TournamentArchitecture.cpp
 )
 
 add_executable(poker_engine src/main.cpp)
