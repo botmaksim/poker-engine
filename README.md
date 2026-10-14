@@ -1,56 +1,74 @@
-# Universal Poker Engine (UPIS)
+# Universal Poker Engine: High-Performance UPIS Game Theory Framework
 
-## Project Overview
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-blue.svg)](https://en.wikipedia.org/wiki/C%2B%2B17)
+[![CMake 3.16+](https://img.shields.io/badge/CMake-3.16%2B-blue.svg)](https://cmake.org/)
+[![Architecture](https://img.shields.io/badge/Architecture-Zero%20Allocation-orange.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-The Universal Poker Engine (UPIS) is a generalized, high-performance C++17 framework designed for the simulation, evaluation, and algorithmic analysis of structured poker variants. The architecture separates the mechanical state of the game from the heuristic decision engines, establishing a modular environment suitable for large-scale computational game theory experiments and data aggregation. The system currently supports fundamental rulesets, including Texas Hold'em, Omaha, and Short Deck, providing a standardized environment for agent-based modeling and programmatic tournament generation.
+The Universal Poker Engine is a generalized, zero-allocation C++17 framework designed for poker variant simulations, hand evaluations, and game-theoretic tree solving. The system adheres to the Universal Poker Interface Specification, enabling plug-and-play integration with external research solvers and bot harnesses.
 
-## Technical Stack
+---
 
-* **Language:** C++17
-* **Build System:** CMake (Version 3.10+)
-* **Parallelization:** Standard C++ Runtime Threading (`<thread>`, `<future>`, `<atomic>`)
-* **Optimization Methodologies:** Bitwise arithmetic (SIMD Within A Register - SWAR), perfectly hashed logical evaluators, and precomputed heuristic binary trees.
+## Table of Contents
+1. [Framework Capabilities](#framework-capabilities)
+2. [Engine Architecture](#engine-architecture)
+3. [Prerequisites](#prerequisites)
+4. [Build & Benchmarking](#build--benchmarking)
+5. [Directory Structure](#directory-structure)
+6. [License](#license)
 
-## Compilation and Build Instructions
+---
 
-The engine relies on standard CMake build pipelines. Execute the following commands in the project root to configure and compile the binaries:
+## Framework Capabilities
+
+* **High-Throughput Hand Evaluator**: Bitboard card representation and lookup tables evaluating millions of hand combinations per second.
+* **Variant Generalization**: Configurable state machine supporting Texas Hold'em, Omaha, and custom multi-street betting structures.
+* **Zero-Allocation Core**: Pre-allocated memory arenas eliminating heap churn during high-depth Monte Carlo simulations.
+* **UPIS Protocol Bridge**: Standardized interface communication conforming to tournament poker bot protocols.
+
+---
+
+## Engine Architecture
+
+* **`include/`**: Public headers defining card bitmasks, evaluator lookups, and state machine transitions.
+* **`src/`**: Concrete implementations of game trees, equity calculators, and protocol parsers.
+* **`tools/`**: Automated verification benchmarks and Monte Carlo accuracy validation scripts.
+
+---
+
+## Prerequisites
+
+* Compiler: GCC 9+ or Clang 10+ with C++17 support
+* Build System: CMake 3.16+
+
+---
+
+## Build & Benchmarking
 
 ```bash
-mkdir -p build
-cd build
-cmake ..
-make -j$(nproc)
+git clone git@github.com:botmaksim/poker-engine.git
+cd poker-engine
+
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+
+./build/poker_engine_bench
 ```
 
-The build process generates the primary statically-linked library `libpoker_engine_lib.a` along with the executable toolchains localized in the standard output directories.
+---
 
-## Basic Usage
+## Directory Structure
 
-The environment abstracts structural complexity through the `GameState` and `Variants` namespaces. Standard initialization involves registering an engine instance, configuring the ruleset variant, and initiating the hand simulation protocol:
-
-```cpp
-#include "CoreEngine/GameState.hpp"
-#include "CoreEngine/Variants/TexasHoldem.hpp"
-
-// Initialize variant ruleset
-auto gameVariant = std::make_unique<PokerEngine::Games::TexasHoldem>();
-PokerEngine::Engine::GameState state(std::move(gameVariant));
-
-// Register participants with initial chip counts
-state.addPlayer(1, 1500);
-state.addPlayer(2, 1500);
-
-// Proceed with state logic
-state.startHand();
-// Interface with AI Inference modules or structural inputs...
+```text
+poker-engine/
+├── CMakeLists.txt           # Build automation configuration
+├── include/                 # UPIS framework public headers
+├── src/                     # Core engine and hand evaluation implementations
+└── tools/                   # Benchmarks and validation harnesses
 ```
 
-## Core Analytical Modules
+---
 
-### Monte Carlo Simulator
+## License
 
-The evaluation layer utilizes a highly optimized Monte Carlo simulation to estimate positional equity dynamically. Instead of computing combinations iteratively, the pipeline performs threaded hardware-concurrency parallelization over randomized runouts based on known dead cards and opposing constraint distributions. This architectural decision permits convergent sampling of expected win rates for multi-way pots under microsecond constraints.
-
-### Bayesian Inference Tracker
-
-To bridge exploitative counter-strategies with algorithmic baseline play, the engine implements a Bayesian Tracker module. Opposing entities are mapped to a 49-cell discretization matrix characterizing varying degrees of aggression and looseness. Observations of actions (e.g., folding, calling, sizing tendencies) execute constant-time Dirichlet-regularized probability updates across these matrices. The main inference engine blends the Monte Carlo derived equity with the Bayesian state entropy to proportionally evaluate decisions transitioning between pure expected value (EV) and baseline models.
+This project is open-source software licensed under the [MIT License](LICENSE).
